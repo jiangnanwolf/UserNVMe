@@ -9,5 +9,7 @@ int main() {
 
     userNVMe.printCap();
 
+    userNVMe.printVersion();
+
     return 0;
 }

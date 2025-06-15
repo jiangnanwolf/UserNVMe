@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <linux/vfio.h>
 
+#define NVME_REG_CAP    (0x0000)
+#define NVME_REG_VS     (0x0008)
+
 class UserNVMe
 {
     uint8_t *m_bar0;
@@ -21,6 +24,7 @@ public:
     int initMMIO();
 
     void printCap();
+    void printVersion();
 };
 
 #endif

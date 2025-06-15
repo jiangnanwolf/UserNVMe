@@ -79,11 +79,11 @@ int UserNVMe::initMMIO() {
 }
 
 void UserNVMe::printCap() {
-    volatile uint64_t * pcap = (volatile uint64_t*)((uint8_t*)m_bar0 + 0x0000);
+    volatile uint64_t * pcap = (volatile uint64_t*)((uint8_t*)m_bar0 + NVME_REG_CAP);
     uint64_t cap = *pcap;
     printf("NVMe Cap: 0x%016lx\n", cap);
 
-        // Optionally decode fields (per NVMe spec)
+    // Optionally decode fields (per NVMe spec)
     uint16_t mqes = (cap >> 0) & 0xFFFF;    // Max Queue Entries Supported
     uint8_t  cqr  = (cap >> 16) & 0x1;      // Contiguous Queues Required
     uint8_t  ams  = (cap >> 17) & 0x3;      // Arbitration Mechanisms Supported
@@ -104,4 +104,15 @@ void UserNVMe::printCap() {
     printf("  CSS    = 0x%x\n", css);
     printf("  MPSMIN = 0x%x (min page size = %u bytes)\n", mpsmin, 1 << (12 + mpsmin));
     printf("  MPSMAX = 0x%x (max page size = %u bytes)\n", mpsmax, 1 << (12 + mpsmax));
+}
+
+void UserNVMe::printVersion() {
+    volatile uint32_t * pvs = (volatile uint32_t*)((uint8_t*)m_bar0 + NVME_REG_VS);
+    uint32_t version = *pvs;
+    
+    int major = (version >> 16);
+    int minor = (0xFF & (version >> 8));
+    int tertiary = (0xFF & version);
+
+    cout << "NVMe Version: " << major << "." << minor << "." << tertiary << endl;
 }
