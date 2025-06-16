@@ -14,6 +14,10 @@ using namespace std;
 
 #include "user_nvme.h"
 
+#define QUEUE_SIZE 64  // must be a power of 2
+#define CMD_ENTRY_SIZE 64
+#define CMP_ENTRY_SIZE 16
+
 UserNVMe::UserNVMe() : m_bar0(nullptr), m_device(-1), m_group(-1), m_container(-1) {}
 
 UserNVMe::~UserNVMe() {
@@ -115,4 +119,55 @@ void UserNVMe::printVersion() {
     int tertiary = (0xFF & version);
 
     cout << "NVMe Version: " << major << "." << minor << "." << tertiary << endl;
+}
+
+int UserNVMe::setupAdminQueue() {
+
+    void* asq = aligned_alloc(4096, QUEUE_SIZE * CMD_ENTRY_SIZE);
+    void* acq = aligned_alloc(4096, QUEUE_SIZE * CMP_ENTRY_SIZE);
+
+
+    volatile uint32_t* aqa = (volatile uint32_t*)(m_bar0 + NVME_REG_AQA);
+    volatile uint64_t* asq_mmio = (volatile uint64_t*)(m_bar0 + NVME_REG_ASQ);
+    volatile uint64_t* acq_mmio = (volatile uint64_t*)(m_bar0 + NVME_REG_ACQ);
+
+    *aqa = ((QUEUE_SIZE - 1) << 16) | (QUEUE_SIZE - 1);
+
+    uint64_t asq_dma = mapDMA(m_container, asq, QUEUE_SIZE * CMD_ENTRY_SIZE, 0x1000000000);
+    uint64_t acq_dma = mapDMA(m_container, acq, QUEUE_SIZE * CMD_ENTRY_SIZE, 0x1100000000);
+
+    *asq_mmio = asq_dma;  // from VFIO
+    *acq_mmio = acq_dma;  // from VFIO
+
+    uint32_t cc_val = 0;
+    cc_val |= (6 << 20); // IOSQES = 6 (2^6 = 64 bytes)
+    cc_val |= (4 << 16); // IOCQES = 4 (2^4 = 16 bytes)
+    cc_val |= 1;         // EN (enable controller)
+
+    volatile uint32_t* cc = (volatile uint32_t*)(m_bar0 + NVME_REG_CC);
+    *cc = cc_val;
+
+    volatile uint32_t* csts = (volatile uint32_t*)(m_bar0 + NVME_REG_CSTS);
+    while (!(*csts & 0x1)) {
+        usleep(1000);
+    }
+
+    return 0;
+}
+
+uint64_t UserNVMe::mapDMA(int container_fd, void* vaddr, size_t size, uint64_t iova) {
+    struct vfio_iommu_type1_dma_map dma_map = {0};
+
+    dma_map.argsz = sizeof(dma_map);
+    dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
+    dma_map.vaddr = (uintptr_t)vaddr;
+    dma_map.size = size;
+    dma_map.iova = iova;
+
+    if (ioctl(container_fd, VFIO_IOMMU_MAP_DMA, &dma_map) < 0) {
+        perror("VFIO_IOMMU_MAP_DMA failed");
+        return 0;  // or handle error better
+    }
+
+    return iova;  // usable as DMA address
 }

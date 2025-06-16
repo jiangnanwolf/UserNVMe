@@ -11,5 +11,7 @@ int main() {
 
     userNVMe.printVersion();
 
+    userNVMe.setupAdminQueue();
+
     return 0;
 }
