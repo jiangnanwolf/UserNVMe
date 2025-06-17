@@ -13,5 +13,7 @@ int main() {
 
     userNVMe.setupAdminQueue();
 
+    userNVMe.identifyController();
+
     return 0;
 }
