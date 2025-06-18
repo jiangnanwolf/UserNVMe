@@ -1,4 +1,5 @@
 #include "user_nvme.h"
+#include "dma_pool.h"
 
 #include <cstdio>
 #include <cstring>
