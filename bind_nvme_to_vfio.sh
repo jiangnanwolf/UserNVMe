@@ -1,7 +1,7 @@
 #!/bin/bash
 
-VENDOR_ID="1c5c"
-DEVICE_ID="1f69"
+VENDOR_ID="144d"
+DEVICE_ID="a80a"
 
 echo "[+] Loading vfio-pci..."
 sudo modprobe vfio-pci

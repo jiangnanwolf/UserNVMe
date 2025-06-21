@@ -58,15 +58,29 @@ int UserNVMe::initMMIO() {
 
 void UserNVMe::printCap() {
     auto cap = *(volatile uint64_t*)(m_bar0 + NVME_REG_CAP);
-    printf("NVMe Cap: 0x%016lx\n", cap);
+    printf("NVMe CAP = 0x%016lx\n", cap);
 
-    uint16_t mqes = cap & 0xFFFF;
-    uint8_t dstrd = (cap >> 32) & 0xF;
-    uint8_t mpsmin = (cap >> 48) & 0xF;
-    uint8_t mpsmax = (cap >> 52) & 0xF;
+    // Extract fields per NVMe spec
+    uint16_t mqes    = (cap >> 0)  & 0xFFFF;  // Max Queue Entries Supported (0-based)
+    uint8_t  cqr     = (cap >> 16) & 0x1;     // Contiguous Queues Required
+    uint8_t  ams     = (cap >> 17) & 0x7;     // Arbitration Mechanism Supported
+    uint8_t  to      = (cap >> 24) & 0xFF;    // Timeout in 500ms units
+    uint8_t  dstrd   = (cap >> 32) & 0xF;     // Doorbell stride (2^(2 + DSTRD) bytes)
+    uint8_t  nssrs   = (cap >> 36) & 0x1;     // NVM Subsystem Reset Supported
+    uint8_t  css     = (cap >> 37) & 0xFF;    // Command Sets Supported
+    uint8_t  bps     = (cap >> 45) & 0x1;     // Boot Partition Support
+    uint8_t  mpsmin  = (cap >> 48) & 0xF;     // Minimum Page Size (2^(12 + mpsmin))
+    uint8_t  mpsmax  = (cap >> 52) & 0xF;     // Maximum Page Size (2^(12 + mpsmax))
 
-    printf("  MQES   = 0x%04x\n", mqes);
-    printf("  DSTRD  = 0x%x (stride = %u bytes)\n", dstrd, 1 << (2 + dstrd));
+    // Print
+    printf("  MQES   = 0x%04x (%u entries max)\n", mqes, mqes + 1);
+    printf("  CQR    = 0x%x (Contiguous Queues %srequired)\n", cqr, cqr ? "" : "not ");
+    printf("  AMS    = 0x%x (Arbitration Mechanisms Supported)\n", ams);
+    printf("  TO     = 0x%02x (%u ms command timeout)\n", to, to * 500);
+    printf("  DSTRD  = 0x%x (Stride = %u bytes)\n", dstrd, 1 << (2 + dstrd));
+    printf("  NSSRS  = 0x%x (Subsystem Reset %ssupported)\n", nssrs, nssrs ? "" : "not ");
+    printf("  CSS    = 0x%02x (Command Sets Supported)\n", css);
+    printf("  BPS    = 0x%x (Boot Partition %ssupported)\n", bps, bps ? "" : "not ");
     printf("  MPSMIN = 0x%x (%u bytes)\n", mpsmin, 1 << (12 + mpsmin));
     printf("  MPSMAX = 0x%x (%u bytes)\n", mpsmax, 1 << (12 + mpsmax));
 }
